@@ -1,33 +1,15 @@
 
   { create-application } = dependency 'tui.Application'
 
-  { startup, before-execution, after-execution, shutdown, on-error } = dependency 'Execution'
-  { background-processing } = dependency 'Background'
-
-  char = (.ascii-char-string)
+  { startup, shutdown, before-execution, after-execution, failure } = dependency 'Execution'
+  { background-processing } = dependency 'BackgroundProcessing'
 
   create-application!
 
-    ..on-startup startup ; ..on-shutdown shutdown ; ..on-error on-error
+    ..on-startup startup ; ..on-shutdown shutdown
 
-    ..before-execution before-execution ; ..after-execution after-execution
+    ..before-execution before-execution ; ..after-execution after-execution ; ..on-error failure
 
     ..on-idle background-processing
 
-    ..start ({ context: { subsystems: { commands }, event-handling: { input-event } }, application: { quit } }) ->
-
-      switch input-event.type
-
-        | 'KeyPressed' =>
-
-          key = char input-event
-
-          switch key
-
-            | 'q' => quit!
-
-            | 's' => commands.execute 'SplashScreenActivate'
-
-            | 'l' => commands.execute 'ApplicationLogActivate'
-            | 'w' => commands.execute 'ApplicationLogWrite', 'testing'
-            | 'g' => commands.execute 'ApplicationLogGotoLastLine'
+    ..start ({ application }) -> application.quit!

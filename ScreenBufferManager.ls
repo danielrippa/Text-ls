@@ -1,8 +1,8 @@
 
   do ->
 
-    { create-screen-buffer } = dependency 'tui.console.ScreenBuffer'
     { create-instance } = dependency 'reflection.Instance'
+    { create-screen-buffer } = dependency 'tui.console.ScreenBuffer'
     { get-timestamp } = dependency 'unsafe.Date'
 
     create-id = -> "screen-buffer-#{ get-timestamp! }"
@@ -13,16 +13,15 @@
 
       create-instance do
 
-        create-screen-buffer: member: ->
+        create-screen-buffer: member: -> id = create-id! ; screen-buffers[ id ] := create-screen-buffer! ; id
 
-          id = create-id! ; screen-buffer = create-screen-buffer!
+        get-screen-buffer-by-id: member: -> screen-buffers[ it ]
 
-          screen-buffers[ id ] := screen-buffer
+        get-commands: member: ->
 
-          id
-
-        get-screen-buffer: member: (id) -> screen-buffers[id]
+          ScreenBufferCreate: ->
 
     {
       create-screen-buffer-manager
     }
+

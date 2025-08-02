@@ -2,44 +2,43 @@
   do ->
 
     { create-instance } = dependency 'reflection.Instance'
-
-    { value-as-string } = dependency 'reflection.Value'
+    { create-log-file } = dependency 'os.filesystem.LogFile'
+    { debug } = dependency 'os.shell.IO'
     { get-timestamp } = dependency 'unsafe.Date'
+    { value-as-string } = dependency 'reflection.Value'
 
-    screen-buffer-write = (screen-buffers, id, message) ->
+    as-string = -> "#{ get-timestamp! } #{ [ (value-as-string arg) for arg in it ] * ' ' }"
 
-      { cursor } = screen-buffers[ id ] ; cursor! => ..goto ..row + 1, 0 ; ..write message
+    screen-buffer-write = (screen-buffer, entry) ->
 
-    create-application-log = (screen-buffers) ->
+      screen-buffer => ..cursor!new-line! ; ..write entry
 
-      screen-buffer-id = screen-buffers.create-screen-buffer!
+    create-application-log = (screen-buffer) ->
 
-      line-count = 0
+      log-file = create-log-file!
 
-      log = -> screen-buffer-write screen-buffers, screen-buffer-id, it ; line-count++
+      log = (args, type) ->
 
-      get-screen-buffer = -> screen-buffers.get-screen-buffer screen-buffer-id
-
-      goto = (row) -> get-screen-buffer!cursor!goto row, 0
+        entry = as-string args ; debug entry ; log-file.write entry ; screen-buffer-write screen-buffer, entry
 
       instance = create-instance do
 
-        activate: member: -> get-screen-buffer!activate!
+        activate: member: -> screen-buffer.activate!
 
-        log: member: (message) -> log [ get-timestamp!, message ] * ' '
+        start: member: -> log-file.start!
+        stop: member: -> log-file.stop!
 
-        goto-line: member: (line) -> goto line
-
-        goto-last-line: member: -> goto line-count
+        write-error: member: -> log arguments, 'ERROR'
+        write-info: member:  -> log arguments, 'INFO'
 
         get-commands: member: ->
 
           ApplicationLogActivate: -> instance.activate!
-          ApplicationLogWrite: -> instance.log [ "#arg" for arg in arguments ] * ' '
-          ApplicationLogGotoLine: (line) -> instance.goto-ine parse-int line, 10
-          ApplicationLogGotoLastLine: -> instance.goto-last-line!
+          ApplicationLogStart: -> instance.start!
+          ApplicatinLogStop: -> instance.stop!
 
-      instance
+          ApplicationLogWriteError: -> instance.write-error ...
+          ApplicationLogWriteInfo: -> instance.write-info ...
 
     {
       create-application-log

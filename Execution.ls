@@ -1,42 +1,64 @@
 
   do ->
 
+    { analyze-hresult } = dependency 'os.win32.HResult'
+
+    { create-screen-buffer-manager } = dependency 'ScreenBufferManager'
+    { create-application-log } = dependency 'ApplicationLog'
     { create-console-input } = dependency 'os.win32.com.ConsoleInput'
-    { get-subsystems } = dependency 'SubSystems'
 
-    startup = ({ context }) ->
+    { type } = dependency 'reflection.Type'
 
-      subsystems = get-subsystems { context }
+    { value-as-string } = dependency 'reflection.Value'
 
-      { splashScreen } = subsystems
+    application-module = (application) ->
 
-      splashScreen.activate! 
-      
-      console-input = create-console-input! ; event-handling = { console-input }
+      get-commands: -> ApplicationExit: -> application.quit!
 
-      context <<< { event-handling, subsystems }
+    create-screen-buffer = (screen-buffer-manager) ->
 
-    shutdown = ->
+      screen-buffer-manager => id = ..create-screen-buffer! ; return ..get-screen-buffer-by-id id
 
-      WScript.Echo 'shutdown'
+    startup = ({ execution, background-processing, application }) ->
 
-    before-execution = ({ context: { event-handling } }) ->
+      execution
 
-      { console-input } = event-handling
+        .. <<< input-events: create-console-input!
 
-      input-event = eval "(#{ console-input.GetInputEvent! })"
+      background-processing
 
-      switch input-event.type
+        .. <<< screen-buffers: create-screen-buffer-manager!
+        .. <<< application-log: create-application-log create-screen-buffer ..screen-buffers ; ..application-log.start!
+        .. <<< command-manager: create-commands-manager!
 
-        | 'WindowFocus' => { focused: is-window-focused } = input-event ; event-handling <<< { is-window-focused }
+      { command-manager } = background-processing
 
-      event-handling <<< { input-event }
+      for module-name, module of background-processing with application-module application
 
-    after-execution = ->
+        { get-commands } = module ; continue if get-commands is void
 
+        for command-name, command of get-commands!
 
-    on-error = ({ error, application }) -> WScript.Echo error.message ; application.quit!
+          command-manager.register-command command-name, command
+
+    shutdown = ({ background-processing }) ->
+
+      { application-log } = background-processing ; application-log.stop!
+
+    before-execution = ({ execution }) ->
+
+      { input-events: console-input } = execution ; input-event = eval "(#{ console-input.GetInputEvent! })"
+
+      execution <<< { input-event }
+
+    after-execution = -> coso
+
+    failure = ({ error, context: { background-processing } }) ->
+
+      { application-log } = background-processing ; application-log.write-error error
 
     {
-      startup, shutdown, before-execution, after-execution, on-error
+      startup, shutdown,
+      before-execution, after-execution,
+      failure
     }
