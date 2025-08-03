@@ -1,8 +1,8 @@
 
   { create-application } = dependency 'tui.Application'
 
-  { startup, shutdown, before-execution, after-execution, failure } = dependency 'Execution'
-  { background-processing } = dependency 'BackgroundProcessing'
+  { startup, shutdown, failure } = dependency 'Execution'
+  { before-execution, after-execution, background-processing } = dependency 'BackgroundProcessing'
 
   create-application!
 
@@ -12,4 +12,19 @@
 
     ..on-idle background-processing
 
-    ..start ({ application }) -> application.quit!
+    ..start ({ execution, application }) ->
+
+      { input-event } = execution
+
+      switch input-event.type
+
+        | 'KeyPressed' =>
+
+          WScript.StdOut.Write input-event.ascii-char
+
+          switch input-event.ascii-char
+
+            | 'q' => 
+              
+              application.quit!
+
