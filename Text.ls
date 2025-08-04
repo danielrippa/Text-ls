@@ -4,6 +4,8 @@
   { startup, shutdown, failure } = dependency 'Execution'
   { before-execution, after-execution, background-processing } = dependency 'BackgroundProcessing'
 
+  { value-as-string } = dependency 'reflection.Value'
+
   create-application!
 
     ..on-startup startup ; ..on-shutdown shutdown
@@ -14,17 +16,28 @@
 
     ..start ({ execution, application }) ->
 
-      { input-event } = execution
+      { input-event } = execution ; return if input-event is void
 
       switch input-event.type
 
+        | 'MouseMoved' => WScript.StdOut.Write '.'
+
         | 'KeyPressed' =>
 
-          WScript.StdOut.Write input-event.ascii-char
+          switch input-event.key-type
 
-          switch input-event.ascii-char
+            | 'function' => WScript.Echo input-event.function-key
 
-            | 'q' => 
-              
-              application.quit!
+            else
 
+              WScript.StdOut.Write input-event.ascii-char
+
+              switch input-event.unicode-char
+
+                | 'q' =>
+
+                  application.quit!
+
+        | 'None' =>
+
+        else input-event.type

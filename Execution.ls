@@ -2,9 +2,8 @@
   do ->
 
     { analyze-hresult } = dependency 'os.win32.HResult'
-    { create-screen-buffer-manager } = dependency 'ScreenBufferManager'
+    { create-screen-buffer-manager } = dependency 'tui.console.ScreenBufferManager'
     { create-application-log } = dependency 'ApplicationLog'
-    { create-console-input } = dependency 'os.win32.com.ConsoleInput'
     { create-mailslot-command-reader } = dependency 'MailslotCommandReader'
     { create-command-manager } = dependency 'CommandManager'
     { type } = dependency 'reflection.Type'
@@ -14,13 +13,23 @@
     { stderr } = dependency 'os.shell.IO'
     { sleep } = dependency 'os.shell.Script'
     { background-processing-setup } = dependency 'BackgroundProcessing'
+    { create-input: create-console-input } = dependency 'tui.console.Input'
 
     application-module = (application) ->
 
       get-commands: -> ApplicationExit: -> application.quit!
 
     create-screen-buffer = (screen-buffer-manager) ->
-      screen-buffer-manager => id = ..create-screen-buffer! ; return ..get-screen-buffer-by-id id
+
+      screen-buffer-manager => id = ..get-new-screen-buffer-id! ; ..get-screen-buffer-by-id id
+
+    input-event-handler = (execution) -> (input-event) -> execution <<< { input-event }
+
+    window-event-handler = (execution) -> (window-event) ->
+
+      switch window-event.type
+
+        | 'WindowFocus' => { focused: is-window-focused } = window-event ; execution <<< { is-window-focused }
 
     startup = ({ execution, background-processing, application }) ->
 
@@ -28,7 +37,20 @@
 
       execution
 
-        .. <<< input-events: create-console-input!
+        .. <<< console-input: create-console-input!
+
+        WScript.Echo ..console-input.mode-state!
+
+        ..console-input
+
+          ..on-mouse-event input-event-handler execution
+          ..on-key-event   input-event-handler execution
+
+          ..on-window-event window-event-handler execution
+
+          application <<< { console-input-mode-state: ..mode-state! }
+
+          ..enable-raw-mode!
 
       background-processing
 
@@ -48,13 +70,18 @@
 
           command-manager.register-command command-name, command
 
-    shutdown = ({ background-processing }) ->
+    shutdown = ({ execution, background-processing, application }) ->
+
+      { console-input } = execution ;
+      { console-input-mode-state } = application ; WScript.Echo console-input-mode-state
+      console-input.set-mode-state console-input-mode-state
 
       { application-log } = background-processing ; application-log.stop!
 
     failure = ({ error, context: { background-processing } }) ->
 
-      { application-log } = background-processing ; application-log.write-error error ; stderr value-as-string error
+      { application-log } = background-processing ; # application-log.write-error error ;
+      stderr value-as-string error
 
     {
       startup, shutdown,
